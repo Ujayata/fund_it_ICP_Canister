@@ -1,0 +1,18 @@
+type Campaign = record {
+  id : text;
+  title : text;
+  donors : vec Donor;
+  goal : float64;
+  description : text;
+  proposer : principal;
+  totalDonations : float64;
+};
+type Donor = record { id : principal; amount : float64 };
+type _AzleResult = variant { Ok : Campaign; Err : text };
+service : () -> {
+  createCampaign : (principal, text, text, float64) -> (_AzleResult);
+  deleteCampaign : (text) -> (_AzleResult);
+  donateCampaign : (text, principal, float64) -> (_AzleResult);
+  getCampaign : (text) -> (_AzleResult) query;
+  updateOnlyTitleandDescription : (text, text, text) -> (_AzleResult);
+}
