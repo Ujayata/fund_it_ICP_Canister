@@ -1,30 +1,13 @@
 import { Principal, text, $query, $update, Opt, Record, StableBTreeMap, Result, match, Vec } from "azle";
-
-
-// Donor: The Person who donates to the campaign
-type Donor = Record<{
-  id: Principal;
-  amount: number;
-}>;
+import { Campaign, Donor } from "./types";
 
 const generateId = () => (""+Math.random()).substring(2,7);
-
-// Campaign: The Campaign that is created by the proposer
-type Campaign = Record<{
-    id: string;
-    proposer: Principal;
-    title: string;
-    description: string;
-    goal: number;
-    totalDonations: number;
-    donors:  Vec<Donor>
-  }>;
 
 // campaignStorage: The storage that stores all the campaigns
 const campaignStorage = new StableBTreeMap<string, Campaign>(0, 44, 1024); 
 
 /*
-createCampaign: Creates a new campaign by taking the proposer, title, description and goal as input,
+createCampaign: Creates a new campaign by taking the proposer, title, description, goal and deadline as input,
 by default the totalDonations is 0 and donors is empty
 */
 
@@ -35,10 +18,12 @@ by default the totalDonations is 0 and donors is empty
  * @param _title - The title of the campaign.
  * @param _description - The description of the campaign.
  * @param _goal - The goal amount of the campaign.
+ * @param _deadline - This is the deadline for the campaign, to make simple we will take the input from the user in days.
+ *        if he enters 10 it means current time + 10 days will be the deadline.
  * @returns A result object containing the created campaign or an error string.
  */
 $update;
-export function createCampaign (_proposer: Principal, _title:text, _description:text, _goal:number,): Result<Campaign, string> {
+export function createCampaign (_proposer: Principal, _title:text, _description:text, _goal:number, _deadline: number): Result<Campaign, string> {
   try {
     if (!_proposer) {
       return Result.Err<Campaign, string>("Proposer is required");
@@ -53,6 +38,9 @@ export function createCampaign (_proposer: Principal, _title:text, _description:
       return Result.Err<Campaign, string>("Goal should be greater than 0");
     }
 
+    const endDate = new Date(); 
+    endDate.setDate(endDate.getDate() + _deadline); 
+
     const campaign: Campaign = {
       id:generateId(),
       proposer: _proposer,
@@ -60,6 +48,7 @@ export function createCampaign (_proposer: Principal, _title:text, _description:
       description: _description,
       goal: _goal,
       totalDonations: 0,
+      deadline: endDate,
       donors: [] as Vec<Donor>
     };
 
@@ -105,12 +94,18 @@ export function updateOnlyTitleandDescription (_campaignId: string, _title:strin
  * @param _donorId - The ID of the donor.
  * @param _amount - The amount to donate.
  * @returns A result object containing the updated campaign or an error string.
+ * 
+ * If the campaign passes the deadline then it will give an Campaign has ended error, 
+ * if goal is crossed then it will give the maximum goal crossed error.
  */
 $update;
 export function donateCampaign (_campaignId: string, _donorId: Principal, _amount: number): Result<Campaign, string> {
   
     return match(campaignStorage.get(_campaignId), {
       Some: (campaign) => {
+        if (new Date() > campaign.deadline) {
+          return Result.Err<Campaign, string>('This campaign has ended');
+        }
         const newDonor: Donor = { id: _donorId, amount: _amount };
           campaign.donors.push(newDonor);
           if(campaign.goal >= campaign.totalDonations + _amount) {
@@ -156,4 +151,3 @@ export function deleteCampaign (id: string): Result<Campaign, string> {
     None: () => Result.Err<Campaign, string>(`the campaign with id=${id} is not found`),
   })
 }
-
