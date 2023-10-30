@@ -13,6 +13,6 @@ export type Campaign = Record<{
       description: string;
       goal: number;
       totalDonations: number;
-      deadline: Date;
+      deadline: number;
       donors:  Vec<Donor>
     }>;
